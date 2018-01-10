@@ -18,6 +18,8 @@ android {
         multiDexEnabled true
         resConfigs "zh","en"
     }
+
+
     buildTypes {
         release {
             minifyEnabled false
