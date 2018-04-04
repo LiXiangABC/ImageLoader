@@ -109,7 +109,7 @@ public class FileUtil {
  * getFilesDir()方法用于获取/data/data//files目录
  * 
  */
-	public static File getDiskCacheDir(Context context, String uniqueName)
+	public static File getDiskCacheDir(Context context, String destFileDirName, String fileNmae)
 	{
 		String cachePath;
 		if (checkSaveLocationExists())//检查是否安装SD卡
@@ -119,10 +119,12 @@ public class FileUtil {
 		{
 			cachePath = context.getCacheDir().getPath();
 		}
-		File file = new File(cachePath + File.separator + uniqueName);
-			file.getParentFile().mkdirs();
-//			file.mkdir();
-		return file;
+		File dir = new File(cachePath + File.separator + destFileDirName);
+		if (!dir.exists())
+		{
+			dir.mkdirs();
+		}
+		return new File(dir, fileNmae);
 	}
 
 	

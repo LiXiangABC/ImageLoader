@@ -1,6 +1,8 @@
 package com.example.lixiang.imageload;
 
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Message;
@@ -54,8 +56,6 @@ public class ImageLoader extends baseMultithreadLoader {
 
     private static final String TAG = "ImageLoader";
 
-    @SuppressWarnings("FieldCanBeLocal")
-    private boolean isDiskCacheEnable = true;
 
     public void initSupplement() {
         // 初始化获取我们应用的最大可用内存
@@ -198,85 +198,133 @@ private void refreashBitmap(final String path, final ImageView imageView,
     public void runThreadPoolChildThread(LoadImageBean loadImageBean) {
 
         File file;
-        //		创建一个将以MD5加密的文件名到文件目录中
+        //		创建一个将以MD5加密的文件名到文件目录,会在指定目录中查找和缓存文件
         if (loadImageBean.cacheFile != null) {
             file = new File( loadImageBean.cacheFile, md5Utils.md5(loadImageBean.getImageName()));
             LogSwitchUtils.Log("走的是当前路径",file.getAbsolutePath());
         }else {
+            /**        Explain : 当没有设定缓存目录名称就设定默认名称，会在默认目录中查找和缓存文件
+             * @author LiXiang create at 2018/4/3 17:38*/
             file = FileUtil.getDiskCacheDir(loadImageBean.imageView.getContext(),
-                    "ICarZooImageLoader" + File.separator + md5Utils.md5(loadImageBean.imageName));
+                    "ICarZooImageLoader" ,md5Utils.md5(loadImageBean.imageName));
         }
-	    /**        Explain : 判断是否开启本地缓存
-	    * @author LiXiang create at 2017/11/25 17:31*/
-        if (isDiskCacheEnable) {
-            if (file.exists() && file.length() > 0)// 如果在缓存文件中发现
-            {
-                File mFile = new File(file.getAbsolutePath());
-                Bitmap bitmap = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(), loadImageBean.imageView);
-                if (bitmap != null) {
-                refreashImageViewAndLruCache(loadImageBean.imageName, loadImageBean.imageView, bitmap);
-                Log.e(TAG, "find image :" + loadImageBean.imageName+ " in disk cache .");
-                return;
-                }
-            }else {
-                LogSwitchUtils.Log("走的是当前路径","没有发现当前文件");
-            }
+
+
+	    /**        Explain : 读取本地配置文件中的信息
+	    * @author LiXiang create at 2018/4/3 17:40*/
+        SharedPreferences preferences = loadImageBean.imageView.getContext().getSharedPreferences(md5Utils.md5(loadImageBean.getImageName()), Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+//        preferences.getLong("imageDownLoadTatol-"+md5Utils.md5(loadImageBean.getImageName()), 0);
+        /**        Explain : 获取当前的下载量是否的为0，当为0的时候就认定为未下载过，
+         *                   会重置文件总大小、URL地址数据
+        * @author LiXiang create at 2018/4/3 17:53*/
+        if (preferences.getLong("imageDownLoadSum", 0) == 0) {
+            editor.putLong("imageDownLoadTatol", 0);
+            editor.putLong("imageDownLoadSum", 0);
+//            editor.putString("imageURL", md5Utils.md5(loadImageBean.getImageName()));
+            editor.commit();
+
+            /**        Explain : 直接进行网络下载图片
+            * @author LiXiang create at 2018/4/3 18:10*/
+            downLoadImage(loadImageBean, file, preferences);
+            
+            
+            /**        Explain : 下载数和文件总大小相等就是文件下载完成
+            * @author LiXiang create at 2018/4/4 15:54*/
+        }else if(preferences.getLong("imageDownLoadSum", 0) == preferences.getLong("imageDownLoadTatol", 0)){
+            /**        Explain : 本地获取图片，获取到了就终止下面的代码逻辑
+             * @author LiXiang create at 2018/4/3 18:17*/
+            if (loadLocalImage(loadImageBean, file)) return;
+
+            /**        Explain : 当配置文件存在，而图片文件不存在则直接重置下载
+            * @author LiXiang create at 2018/4/4 15:58*/
+            editor.putLong("imageDownLoadTatol", 0);
+            editor.putLong("imageDownLoadSum", 0);
+//            editor.putString("imageURL", md5Utils.md5(loadImageBean.getImageName()));
+            editor.commit();
+            downLoadImage(loadImageBean, file,preferences);
+        }else {
+            downLoadImage(loadImageBean, file,preferences);
         }
-        if (loadImageBean.isFromNet)// 当本地文件中没有判断当前是否有让支持网络
+
+
+
+	}
+
+    private void downLoadImage(LoadImageBean loadImageBean, File file, SharedPreferences preferences) {
+        if (!loadImageBean.isFromNet)// 当本地文件中没有判断当前是否有让支持网络
         {
+            return;
+        }
+        OkHttpUtils//
+                .get()//
+                .addHeader("RANGE", "bytes=" + preferences.getLong("imageDownLoadSum", 0)+"-")//
+                .url(loadImageBean.imageName)//
+                .build()//
+                .execute(new FileCallBack(file.getParentFile().getAbsolutePath(), md5Utils.md5(loadImageBean.imageName),
+                        md5Utils.md5(loadImageBean.getImageName()),"imageDownLoadTatol","imageDownLoadSum")//
+                {//mProgressBar.setProgress((int) (100 * progress));
+                    @Override
+                    public void inProgress(float progress) {
+                    }
 
-                    OkHttpUtils//
-                            .get()//
-                            .url(loadImageBean.imageName)//
-                            .build()//
-                            .execute(new FileCallBack(file.getParentFile().getAbsolutePath(), md5Utils.md5(loadImageBean.imageName))//
-                            {//mProgressBar.setProgress((int) (100 * progress));
-                                @Override
-                                public void inProgress(float progress) {
-                                }
-
-                                public void onError(Request request, Exception e) {
-                                    Log.e(TAG, "onError :" + e.getMessage());
+                    public void onError(Request request, Exception e) {
+                        Log.e(TAG, "onError :" + e.getMessage());
 //									bm[0] = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(),
 //											imageView);
 //						当这次下载失败就用失败的图片代替，但要删除本地对这个地址的错误显示图片的缓存图片文件，这样，下次打开的时候就能够
 //						重新下载，而不会还是显示缓存中错误图片
-                                    if (file.exists()) {
-                                        file.delete();
+                        if (file.exists()) {
+                            file.delete();
+                        }
+
+                        OkHttpUtils
+                                .get()//
+                                .url(loadImageBean.imageName)//
+                                .build()//
+                                .execute(new BitmapCallback() {
+                                    public void onError(Request request, Exception e) {
                                     }
 
-                                    OkHttpUtils
-                                            .get()//
-                                            .url(loadImageBean.imageName)//
-                                            .build()//
-                                            .execute(new BitmapCallback() {
-                                                public void onError(Request request, Exception e) {
-                                                }
-
-                                                @Override
-                                                public void onResponse(Bitmap bitmap) {
-                                                    loadImageBean.imageView.setImageBitmap(bitmap);
-                                                }
-                                            });
-                                }
-
-                                @Override
-                                public void onResponse(File file) {
-
-                                    Bitmap bitmap = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(), loadImageBean.imageView);
-                                    if (bitmap != null) {
-                                    //						将指定路径下的图片返回给指定的image对象
-                                        refreashImageViewAndLruCache(loadImageBean.imageName, loadImageBean.imageView, bitmap);
-                                        Log.e(TAG, "find image for net:" + loadImageBean.imageName+ " in disk cache .");
-                                        return;
-                                    }else {
-                                        file.delete();
-                                        ToastUtil.showToast(loadImageBean.imageView.getContext(),"图片加载失败请重新操作");
+                                    @Override
+                                    public void onResponse(Bitmap bitmap) {
+                                        loadImageBean.imageView.setImageBitmap(bitmap);
                                     }
-                                }
-                            });
-		}
-	}
+                                });
+                    }
+
+                    @Override
+                    public void onResponse(File file) {
+
+                        Bitmap bitmap = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(), loadImageBean.imageView);
+                        if (bitmap != null) {
+                        //						将指定路径下的图片返回给指定的image对象
+                            refreashImageViewAndLruCache(loadImageBean.imageName, loadImageBean.imageView, bitmap);
+                            Log.e(TAG, "find image for net:" + loadImageBean.imageName+ " in disk cache .");
+                            return;
+                        }else {
+                            file.delete();
+                            ToastUtil.showToast(loadImageBean.imageView.getContext(),"图片加载失败请重新操作");
+                        }
+                    }
+                });
+    }
+
+    private boolean loadLocalImage(LoadImageBean loadImageBean, File file) {
+        if (file.exists() && file.length() > 0)// 如果在缓存文件中发现
+        {
+            File mFile = new File(file.getAbsolutePath());
+            Bitmap bitmap = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(), loadImageBean.imageView);
+            if (bitmap != null) {
+            refreashImageViewAndLruCache(loadImageBean.imageName, loadImageBean.imageView, bitmap);
+            Log.e(TAG, "find image :" + loadImageBean.imageName+ " in disk cache .");
+                return true;
+            }
+        }else {
+            LogSwitchUtils.Log("走的是当前路径","没有发现当前文件");
+        }
+        return false;
+    }
 
     private void refreashImageViewAndLruCache(String path, ImageView imageView, Bitmap bitmap) {
         //把图片加入到内存缓存
