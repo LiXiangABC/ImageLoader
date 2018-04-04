@@ -212,16 +212,18 @@ private void refreashBitmap(final String path, final ImageView imageView,
 
 
 
-        /**        Explain : 先判断当前的imageView是否是网址，需要要下载，当不是的时候，判断是不是本地生成的图片文件
+        /**        Explain : 先判断当前的imageView是否是网址，需要要下载，当不是的时候，判断是不是本地生成的文件
         * @author LiXiang create at 2018/4/4 18:17*/
         Pattern pattern = Pattern
                 .compile("^([hH][tT]{2}[pP]://|[hH][tT]{2}[pP][sS]://)(([A-Za-z0-9-~]+).)+([A-Za-z0-9-~\\/])+$");
         if (!pattern.matcher(loadImageBean.imageName).matches()) {
-            if (loadLocalImage(loadImageBean, file)) return;
-        }else {
-            ToastUtil.showToast(loadImageBean.imageView.getContext(),"当前图片地址有误");
+            loadLocalImage(loadImageBean, file);
             return;
         }
+//        else {
+//            ToastUtil.showToast(loadImageBean.imageView.getContext(),"当前图片地址有误");
+//            return;
+//        }
 
 	    /**        Explain : 读取本地配置文件中的信息
 	    * @author LiXiang create at 2018/4/3 17:40*/
