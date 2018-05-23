@@ -12,7 +12,7 @@ import android.widget.ImageView;
 
 import com.example.lixiang.imageload.utils.FileUtil;
 import com.example.lixiang.imageload.utils.ImageUtil;
-import com.example.lixiang.imageload.utils.LogSwitchUtils;
+import com.example.lixiang.imageload.utils.Logs;
 import com.example.lixiang.imageload.utils.ToastUtil;
 import com.example.lixiang.imageload.utils.md5Utils;
 import com.example.lixiang.okhttputil.OkHttpUtils;
@@ -28,6 +28,7 @@ import okhttp3.Request;
 @SuppressWarnings({"ALL", "FieldCanBeLocal"})
 public class ImageLoader extends baseMultithreadLoader {
     private static ImageLoader uniqueInstance = null;
+    public static boolean isDebug = false;
 
     private ImageLoader() {
 
@@ -138,27 +139,27 @@ public class ImageLoader extends baseMultithreadLoader {
             int imageViewWidth= imageSize.width;
             int imageViewHeight= imageSize.height;
 
-            LogSwitchUtils.Log("ImageLoader","width:"+width+"  height:"+height+"  imageViewWidth:"+imageViewWidth+"  imageViewHeight:"+imageViewHeight);
+            Logs.Log("ImageLoader","width:"+width+"  height:"+height+"  imageViewWidth:"+imageViewWidth+"  imageViewHeight:"+imageViewHeight);
 //          当imageView大于原图的时候，判断当前的bitmap尺寸是否大于0.7的imageView的尺寸,大于就返回
             if ((imageViewWidth*3 >= width && width >= imageViewWidth*0.3) || (imageViewHeight*3 >= height && bm.getHeight() >= imageViewHeight*0.3)) {
-                LogSwitchUtils.Log("ImageLoader","图片符合规范");
+                Logs.Log("ImageLoader","图片符合规范");
             refreashBitmap(loadImageBean.imageName, loadImageBean.imageView, bm);
             }else if(imageViewWidth*3 <width||imageViewHeight*3 < height){
                 int widthRadio = Math.round(width * 1.0f / imageViewWidth);
                 int heightRadio = Math.round(height * 1.0f / imageViewHeight);
                 int inSampleSize = Math.max(widthRadio, heightRadio);
 //                当bitmap远远大于ImageView的时候，就再进行一次缩放压缩
-                        LogSwitchUtils.Log("ImageLoader","图片过大进行了一次比例压缩");
+                        Logs.Log("ImageLoader","图片过大进行了一次比例压缩");
                     Bitmap dst = Bitmap.createScaledBitmap(bm, width/inSampleSize, height/inSampleSize, true);
                         refreashBitmap(loadImageBean.imageName, loadImageBean.imageView, dst);
             }else {
-                LogSwitchUtils.Log("ImageLoader","图片过小进行重新加载");
+                Logs.Log("ImageLoader","图片过小进行重新加载");
                 addTask(buildTask(loadImageBean));//在buildTask（）方法中包含了遍历本地应硬盘缓存和获取网络缓存；buildTask（）中是创建了一个子线程；这样放置的好处就是，
             }
 		} else
 //			当内存缓存中不存在这张照片的时候,或者小于就重新去本地或者服务器请求，因为图片会模糊
 		{
-            LogSwitchUtils.Log("ImageLoader","当前没有缓存正在重新加载");
+            Logs.Log("ImageLoader","当前没有内存缓存正在重新加载");
 			addTask(buildTask(loadImageBean));//在buildTask（）方法中包含了遍历本地应硬盘缓存和获取网络缓存；buildTask（）中是创建了一个子线程；这样放置的好处就是，
 			                                               //遍历磁盘和访问网络都是属于高耗时操作，放在子线程程里面不会影响主线程的执行效率
 		}
@@ -202,12 +203,12 @@ private void refreashBitmap(final String path, final ImageView imageView,
         //		创建一个将以MD5加密的文件名到文件目录,会在指定目录中查找和缓存文件
         if (loadImageBean.cacheFile != null) {
             file = new File( loadImageBean.cacheFile, md5Utils.md5(loadImageBean.getImageName()));
-            LogSwitchUtils.Log("走的是当前路径",file.getAbsolutePath());
+            Logs.Log("走的是当前路径",file.getAbsolutePath());
         }else {
             /**        Explain : 当没有设定缓存目录名称就设定默认名称，会在默认目录中查找和缓存文件
              * @author LiXiang create at 2018/4/3 17:38*/
             file = FileUtil.getDiskCacheDir(loadImageBean.imageView.getContext(),
-                    "ICarZooImageLoader" ,md5Utils.md5(loadImageBean.imageName));
+                    "ICarZooImageLoader" , md5Utils.md5(loadImageBean.imageName));
         }
 
 
@@ -215,25 +216,28 @@ private void refreashBitmap(final String path, final ImageView imageView,
         /**        Explain : 先判断当前的imageView是否是网址，需要要下载，当不是的时候，判断是不是本地生成的文件
         * @author LiXiang create at 2018/4/4 18:17*/
         Pattern pattern = Pattern
-                .compile("^([hH][tT]{2}[pP]://|[hH][tT]{2}[pP][sS]://)(([A-Za-z0-9-~]+).)+([A-Za-z0-9-~\\/])+$");
+//                .compile("^([hH][tT]{2}[pP]://|[hH][tT]{2}[pP][sS]://)(([A-Za-z0-9-~]+).)+([A-Za-z0-9-~\\/])+$");
+                .compile("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]");
         if (!pattern.matcher(loadImageBean.imageName).matches()) {
+            Logs.Log("当前地址是不合规URL:",loadImageBean.imageName);
             loadLocalImage(loadImageBean, file);
             return;
         }
-//        else {
-//            ToastUtil.showToast(loadImageBean.imageView.getContext(),"当前图片地址有误");
-//            return;
-//        }
+            Logs.Log("当前地址是合规URL:",loadImageBean.imageName);
 
 	    /**        Explain : 读取本地配置文件中的信息
 	    * @author LiXiang create at 2018/4/3 17:40*/
         SharedPreferences preferences = loadImageBean.imageView.getContext().getSharedPreferences(md5Utils.md5(loadImageBean.getImageName()), Context.MODE_PRIVATE);
+
         SharedPreferences.Editor editor = preferences.edit();
 //        preferences.getLong("imageDownLoadTatol-"+md5Utils.md5(loadImageBean.getImageName()), 0);
+        Logs.Log("当前图片文件总大小",preferences.getLong("imageDownLoadSum", 0)+"");
+        Logs.Log("当前图片文件已下载大小",preferences.getLong("imageDownLoadTatol", 0)+"");
         /**        Explain : 获取当前的下载量是否的为0，当为0的时候就认定为未下载过，
          *                   会重置文件总大小、URL地址数据
         * @author LiXiang create at 2018/4/3 17:53*/
         if (preferences.getLong("imageDownLoadSum", 0) == 0) {
+            Logs.Log("初始化下载当前图片文件:",loadImageBean.imageName);
             editor.putLong("imageDownLoadTatol", 0);
             editor.putLong("imageDownLoadSum", 0);
 //            editor.putString("imageURL", md5Utils.md5(loadImageBean.getImageName()));
@@ -247,10 +251,12 @@ private void refreashBitmap(final String path, final ImageView imageView,
             /**        Explain : 下载数和文件总大小相等就是文件下载完成
             * @author LiXiang create at 2018/4/4 15:54*/
         }else if(preferences.getLong("imageDownLoadSum", 0) == preferences.getLong("imageDownLoadTatol", 0)){
+            Logs.Log("当前图片文件是完整图片文件正在从本地加载:",loadImageBean.imageName);
+
             /**        Explain : 本地获取图片，获取到了就终止下面的代码逻辑
              * @author LiXiang create at 2018/4/3 18:17*/
             if (loadLocalImage(loadImageBean, file)) return;
-
+            Logs.Log("当前图片文件不存在正在重新下载:",loadImageBean.imageName);
             /**        Explain : 当配置文件存在，而图片文件不存在则直接重置下载
             * @author LiXiang create at 2018/4/4 15:58*/
             editor.putLong("imageDownLoadTatol", 0);
@@ -259,6 +265,7 @@ private void refreashBitmap(final String path, final ImageView imageView,
             editor.commit();
             downLoadImage(loadImageBean, file,preferences);
         }else {
+            Logs.Log("当前图片文件未下载完成继续下载:",loadImageBean.imageName);
             downLoadImage(loadImageBean, file,preferences);
         }
 
@@ -271,16 +278,31 @@ private void refreashBitmap(final String path, final ImageView imageView,
         {
             return;
         }
+        long imageDownLoadSum = preferences.getLong("imageDownLoadSum", 0);
+        SharedPreferences.Editor editor = preferences.edit();
         OkHttpUtils//
                 .get()//
-                .addHeader("RANGE", "bytes=" + preferences.getLong("imageDownLoadSum", 0)+"-")//
+                .addHeader("RANGE", "bytes=" + imageDownLoadSum+"-")//
                 .url(loadImageBean.imageName)//
                 .build()//
-                .execute(new FileCallBack(file.getParentFile().getAbsolutePath(), md5Utils.md5(loadImageBean.imageName),
-                        md5Utils.md5(loadImageBean.getImageName()),"imageDownLoadTatol","imageDownLoadSum")//
+                .execute(new FileCallBack(file.getParentFile().getAbsolutePath(), md5Utils.md5(loadImageBean.imageName), imageDownLoadSum)
                 {//mProgressBar.setProgress((int) (100 * progress));
                     @Override
-                    public void inProgress(float progress) {
+                    public void inProgress(float progress) {}
+
+                    @Override
+                    public void inProgress(long total, long sum, float progress) {
+                        super.inProgress(total, sum, progress);
+                        /**        Explain : 当,当前下载为0的时候就写入总量大小
+                         * @author LiXiang create at 2018/5/23 12:34*/
+                        synchronized (ImageLoader.this){
+                            //TODO : 此处后面需加上判断
+//                            if (imageDownLoadSum == 0) {
+                            editor.putLong("imageDownLoadTatol", total);
+//                            }
+                            editor.putLong("imageDownLoadSum", sum);
+                            editor.commit();
+                        }
                     }
 
                     public void onError(Request request, Exception e) {
@@ -289,6 +311,8 @@ private void refreashBitmap(final String path, final ImageView imageView,
 //											imageView);
 //						当这次下载失败就用失败的图片代替，但要删除本地对这个地址的错误显示图片的缓存图片文件，这样，下次打开的时候就能够
 //						重新下载，而不会还是显示缓存中错误图片
+                        editor.clear();
+                        editor.commit();
                         if (file.exists()) {
                             file.delete();
                         }
@@ -313,7 +337,7 @@ private void refreashBitmap(final String path, final ImageView imageView,
 
                         Bitmap bitmap = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(), loadImageBean.imageView);
                         if (bitmap != null) {
-                        //						将指定路径下的图片返回给指定的image对象
+                            //						将指定路径下的图片返回给指定的image对象
                             refreashImageViewAndLruCache(loadImageBean.imageName, loadImageBean.imageView, bitmap);
                             Log.e(TAG, "find image for net:" + loadImageBean.imageName+ " in disk cache .");
                             return;
@@ -332,11 +356,11 @@ private void refreashBitmap(final String path, final ImageView imageView,
             Bitmap bitmap = ImageUtil.loadImageFromLocalToView(file.getAbsolutePath(), loadImageBean.imageView);
             if (bitmap != null) {
             refreashImageViewAndLruCache(loadImageBean.imageName, loadImageBean.imageView, bitmap);
-            Log.e(TAG, "find image :" + loadImageBean.imageName+ " in disk cache .");
+                Logs.Log("本地发现图片文件:",loadImageBean.imageName);
                 return true;
             }
         }else {
-            LogSwitchUtils.Log("走的是当前路径","没有发现当前文件");
+                Logs.Log("本地未发现图片文件:",loadImageBean.imageName);
         }
         return false;
     }
