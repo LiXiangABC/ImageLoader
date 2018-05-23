@@ -5,6 +5,8 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.util.Log;
 
+import org.kymjs.kjframe.utils.StringUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
