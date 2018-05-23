@@ -39,4 +39,5 @@ dependencies {
     implementation 'com.android.support:appcompat-v7:25.0.0'
 //    ...
     compile 'com.github.LiXiangABC:OkHttpUtils:v1.0.8'
+    compile 'com.github.LiXiangABC:ThreadPoolManager:v1.0.0'
 }

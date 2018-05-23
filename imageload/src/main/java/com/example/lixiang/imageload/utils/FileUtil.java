@@ -84,7 +84,6 @@ public class FileUtil {
 	 * getFilesDir()方法用于获取/data/data//files目录
 	 *
 	 * @param context
-	 * @param msg
 	 */
 	public static void write(Context context, String fileName, String content) {
 		if (content == null)
@@ -101,15 +100,13 @@ public class FileUtil {
 		}
 	}
 
-	
-
-/**
- * 获取默认缓存地址文件夹
- * 	getCacheDir()方法用于获取/data/data//cache目录
- * getFilesDir()方法用于获取/data/data//files目录
- * 
- */
-	public static File getDiskCacheDir(Context context, String destFileDirName, String fileNmae)
+	/**
+	 * 获取默认缓存地址文件夹
+	 * 	getCacheDir()方法用于获取/data/data//cache目录
+	 * getFilesDir()方法用于获取/data/data//files目录
+	 *
+	 */
+	public static File getBaseDiskCacheDir(Context context, String destFileDirName)
 	{
 		String cachePath;
 		if (checkSaveLocationExists())//检查是否安装SD卡
@@ -124,7 +121,21 @@ public class FileUtil {
 		{
 			dir.mkdirs();
 		}
-		return new File(dir, fileNmae);
+		return dir;
+	}
+
+
+
+	/**
+ * 获取默认缓存地址文件夹
+ * 	getCacheDir()方法用于获取/data/data//cache目录
+ * getFilesDir()方法用于获取/data/data//files目录
+ * 
+ */
+	public static File getDiskCacheDir(Context context, String uniqueName, String fileNmae)
+	{
+
+		return new File(getBaseDiskCacheDir(context,uniqueName), fileNmae);
 	}
 
 	
@@ -224,9 +235,51 @@ public class FileUtil {
 
 		return writeSucc;
 	}
+
+	/**
+	 * 根据文件绝对路径获取文件名
+	 * 
+	 * @param filePath
+	 * @return
+	 */
+	public static String getFileName(String filePath) {
+		if (StringUtils.isEmpty(filePath))
+			return "";
+		return filePath.substring(filePath.lastIndexOf(File.separator) + 1);
+	}
+
+	/**
+	 * 根据文件的绝对路径获取文件名但不包含扩展名
+	 * 
+	 * @param filePath
+	 * @return
+	 */
+	public static String getFileNameNoFormat(String filePath) {
+		if (StringUtils.isEmpty(filePath)) {
+			return "";
+		}
+		int point = filePath.lastIndexOf('.');
+		return filePath.substring(filePath.lastIndexOf(File.separator) + 1,
+				point);
+	}
+
+	/**
+	 * 获取文件扩展名
+	 * 
+	 * @param fileName
+	 * @return
+	 */
+	public static String getFileFormat(String fileName) {
+		if (StringUtils.isEmpty(fileName))
+			return "";
+
+		int point = fileName.lastIndexOf('.');
+		return fileName.substring(point + 1);
+	}
+
 	/**
 	 * 获取文件大小
-	 *
+	 * 
 	 * @param filePath
 	 * @return
 	 */
@@ -462,35 +515,45 @@ public class FileUtil {
 	 * @param fileName
 	 * @return
 	 */
-	public static boolean deleteDirectory(String fileName) {
+	public static boolean deleteExternalStorageDirectory(String fileName) {
 		boolean status;
-		SecurityManager checker = new SecurityManager();
+
 
 		if (!fileName.equals("")) {
 
 			File path = Environment.getExternalStorageDirectory();
 			File newPath = new File(path.toString() + fileName);
-			checker.checkDelete(newPath.toString());
-			if (newPath.isDirectory()) {
-				String[] listfile = newPath.list();
-				try {
-					for (int i = 0; i < listfile.length; i++) {
-						File deletedFile = new File(newPath.toString() + "/"
-								+ listfile[i]);
-						deletedFile.delete();
-					}
-					newPath.delete();
-//					Log.i("DirectoryManager deleteDirectory", fileName);
-					status = true;
-				} catch (Exception e) {
-					e.printStackTrace();
-					status = false;
-				}
 
-			} else
-				status = false;
+			return deleteDirectory(newPath);
+
 		} else
 			status = false;
+		return status;
+	}
+
+	public static boolean deleteDirectory(File newPath) {
+		boolean status;
+		SecurityManager checker = new SecurityManager();
+		checker.checkDelete(newPath.toString());
+		if (newPath.isDirectory()) {
+			String[] listfile = newPath.list();
+			try {
+				for (int i = 0; i < listfile.length; i++) {
+					File deletedFile = new File(newPath.toString() + "/"
+							+ listfile[i]);
+					deletedFile.delete();
+				}
+				newPath.delete();
+//					Log.i("DirectoryManager deleteDirectory", fileName);
+				status = true;
+			} catch (Exception e) {
+				e.printStackTrace();
+				status = false;
+			}
+
+		} else
+			status = false;
+
 		return status;
 	}
 
@@ -664,8 +727,7 @@ public class FileUtil {
 
 	/**
 	 * 创建目录
-	 * 
-	 * @param path
+	 *
 	 */
 	public static PathStatus createPath(String newPath) {
 		File path = new File(newPath);

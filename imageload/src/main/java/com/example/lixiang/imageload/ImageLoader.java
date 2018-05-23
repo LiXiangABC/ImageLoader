@@ -18,6 +18,8 @@ import com.example.lixiang.imageload.utils.md5Utils;
 import com.example.lixiang.okhttputil.OkHttpUtils;
 import com.example.lixiang.okhttputil.callback.BitmapCallback;
 import com.example.lixiang.okhttputil.callback.FileCallBack;
+import com.example.threadpoolmanager.ThreadPoolManager;
+import com.example.threadpoolmanager.threadpool.BaseThreadPool;
 
 import java.io.File;
 import java.util.regex.Pattern;
@@ -26,15 +28,22 @@ import okhttp3.Request;
 
 
 @SuppressWarnings({"ALL", "FieldCanBeLocal"})
-public class ImageLoader extends baseMultithreadLoader {
+public class ImageLoader {
     private static ImageLoader uniqueInstance = null;
     public static boolean isDebug = false;
+    private BaseThreadPool imageLoadTheadPoll;
 
     private ImageLoader() {
-
+        initSupplement();
+        initThreadPool();
     }
 
-    ;
+    /**        Explain : 初始化线程池
+    * @author LiXiang create at 2018/5/23 16:51*/
+    private void initThreadPool() {
+         imageLoadTheadPoll = ThreadPoolManager.newImageLoadTheadPoll();
+    }
+
 
     public static ImageLoader getInstance() {
 
@@ -154,19 +163,30 @@ public class ImageLoader extends baseMultithreadLoader {
                         refreashBitmap(loadImageBean.imageName, loadImageBean.imageView, dst);
             }else {
                 Logs.Log("ImageLoader","图片过小进行重新加载");
-                addTask(buildTask(loadImageBean));//在buildTask（）方法中包含了遍历本地应硬盘缓存和获取网络缓存；buildTask（）中是创建了一个子线程；这样放置的好处就是，
+                addTask(loadImageBean);
             }
 		} else
 //			当内存缓存中不存在这张照片的时候,或者小于就重新去本地或者服务器请求，因为图片会模糊
 		{
             Logs.Log("ImageLoader","当前没有内存缓存正在重新加载");
-			addTask(buildTask(loadImageBean));//在buildTask（）方法中包含了遍历本地应硬盘缓存和获取网络缓存；buildTask（）中是创建了一个子线程；这样放置的好处就是，
+			addTask(loadImageBean);//在buildTask（）方法中包含了遍历本地应硬盘缓存和获取网络缓存；buildTask（）中是创建了一个子线程；这样放置的好处就是，
 			                                               //遍历磁盘和访问网络都是属于高耗时操作，放在子线程程里面不会影响主线程的执行效率
 		}
 
 	}
 
-//  调用此方法，将从内存缓存中获取到的图片资源通过UI handler返回给指定的视图展示对象
+	/**        Explain : 添加线程任务
+	* @author LiXiang create at 2018/5/23 16:58*/
+    private void addTask(LoadImageBean loadImageBean) {
+        imageLoadTheadPoll.execute(new BaseThreadPool.PriorityRunnable(BaseThreadPool.Priority.NORMAL, new Runnable() {
+            @Override
+            public void run() {
+                threadTask(loadImageBean);
+            }
+        }));
+    }
+
+    //  调用此方法，将从内存缓存中获取到的图片资源通过UI handler返回给指定的视图展示对象
 private void refreashBitmap(final String path, final ImageView imageView,
 		Bitmap bm)
 {
@@ -196,8 +216,7 @@ private void refreashBitmap(final String path, final ImageView imageView,
 
 
 
-    @Override
-    public void runThreadPoolChildThread(LoadImageBean loadImageBean) {
+    public void threadTask(LoadImageBean loadImageBean) {
 
         File file;
         //		创建一个将以MD5加密的文件名到文件目录,会在指定目录中查找和缓存文件
@@ -397,9 +416,4 @@ private void refreashBitmap(final String path, final ImageView imageView,
         mLruCache.remove(key);
     }
 
-    @Override
-    public ThreadProxyType setThreadProxyType() {
-        // TODO Auto-generated method stub
-        return ThreadProxyType.IMAGE;
-    }
 }

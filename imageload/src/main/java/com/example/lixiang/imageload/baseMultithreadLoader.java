@@ -13,11 +13,7 @@ public abstract class baseMultithreadLoader {
 	public baseMultithreadLoader(){
 		init();
 	}
-	/**
-	 * 线程池
-	 */
-	private static final int DEAFULT_THREAD_COUNT = 1;
-	
+
 	/**
 	 * 队列调度方式*/
 	public enum Type
@@ -45,28 +41,11 @@ public abstract class baseMultithreadLoader {
 	 */
 	private Thread mPoolThread;
 	private static Handler mPoolThreadHandler;
-//	private ThreadProxyType mThreadProxyType;
-	/**
-	 * 初始化
-	 * 
-	 * @param threadCount
-	 * @param type
-	 */
-	
-	
-	
-	final Semaphore semp = new Semaphore(1);
 	private void init( )
 	{
-//		线程池的类型
-//		mThreadProxyType = setThreadProxyType ();
-		// 创建线程池
-//		createThreadPool(mThreadProxyType);
 		mTaskQueue = new LinkedList<Runnable>();
 		//初始化后台轮询线程
 		initBackThread();
-//		SystemClock.sleep(1000);
-		
 		initSupplement();
 	}
 	
@@ -176,22 +155,7 @@ public abstract class baseMultithreadLoader {
 	public synchronized void addTask(Runnable runnable)
 	{
 		mTaskQueue.add(runnable);
-//		if(mPoolThreadHandler == null){
-////			mPoolThread
-//			 // 获取许可
-//
-//            try {
-//				semp.acquire();
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//         // 访问完后，释放
-//
-//            semp.release();
 
-//		}
-		
 		while(mPoolThreadHandler == null)
 		{
 			if(mPoolThreadHandler == null){
