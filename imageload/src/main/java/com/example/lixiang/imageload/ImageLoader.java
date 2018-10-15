@@ -252,6 +252,7 @@ private void refreashBitmap(final String path, final ImageView imageView,
 //        preferences.getLong("imageDownLoadTatol-"+md5Utils.md5(loadImageBean.getImageName()), 0);
         Logs.Log("当前图片文件总大小",preferences.getLong("imageDownLoadSum", 0)+"");
         Logs.Log("当前图片文件已下载大小",preferences.getLong("imageDownLoadTatol", 0)+"");
+
         /**        Explain : 获取当前的下载量是否的为0，当为0的时候就认定为未下载过，
          *                   会重置文件总大小、URL地址数据
         * @author LiXiang create at 2018/4/3 17:53*/
